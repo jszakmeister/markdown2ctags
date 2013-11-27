@@ -1,0 +1,4 @@
+*.pyc
+md2ctags.egg-info
+dist
+build

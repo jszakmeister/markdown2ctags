@@ -1,0 +1,6 @@
+.gitattributes	export-ignore
+.gitignore	export-ignore
+
+*.txt		text whitespace=trailing-space,space-before-tab
+*.md		text whitespace=trailing-space,space-before-tab,tab-in-indent
+*.py		text diff=python whitespace=trailing-space,space-before-tab,tab-in-indent
