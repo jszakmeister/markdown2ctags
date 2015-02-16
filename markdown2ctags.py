@@ -10,7 +10,7 @@ import sys
 import re
 
 
-__version__ = '0.1.1'
+__version__ = '0.1.2'
 
 
 class ScriptError(Exception):
@@ -100,8 +100,17 @@ settextSubjectRe = re.compile(r'^[^\s]+.*$')
 def findSections(filename, lines):
     sections = []
     previousSections = []
+    inCodeBlock = False
 
     for i, line in enumerate(lines):
+        # Skip GitHub Markdown style code blocks.
+        if line.startswith("```"):
+            inCodeBlock = not inCodeBlock
+            continue
+
+        if inCodeBlock:
+            continue
+
         m = atxHeadingRe.match(line)
         if m:
             level = len(m.group(1))
