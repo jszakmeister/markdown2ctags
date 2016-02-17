@@ -97,10 +97,14 @@ atxHeadingRe = re.compile(r'^(#+)\s+(.*?)(?:\s+#+)?\s*$')
 settextHeadingRe = re.compile(r'^[-=]+$')
 settextSubjectRe = re.compile(r'^[^\s]+.*$')
 
+
 def findSections(filename, lines):
     sections = []
-    previousSections = []
     inCodeBlock = False
+
+    # Initialize previous sections to cope with documents that don't start
+    # at the top-most heading type.
+    previousSections = [None] * 12
 
     for i, line in enumerate(lines):
         # Skip GitHub Markdown style code blocks.
