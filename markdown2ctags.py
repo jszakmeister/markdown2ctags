@@ -10,7 +10,7 @@ import sys
 import re
 
 
-__version__ = '0.1.2'
+__version__ = '0.1.3'
 
 
 class ScriptError(Exception):
@@ -56,6 +56,11 @@ class Tag(object):
                 self.tagName, self.tagFile, self.tagAddress,
                 self._formatFields())
 
+    def __repr__(self):
+        return "<Tag name:%s file:%s: addr:%s %s>" % (
+            self.tagName, self.tagFile, self.tagAddress,
+            self._formatFields().replace('\t', ' '))
+
     def __cmp__(self, other):
         return cmp(str(self), str(other))
 
@@ -93,6 +98,14 @@ class Section(object):
         return '<Section %s %d %d>' % (self.name, self.level, self.lineNumber)
 
 
+def popSections(sections, level):
+    while sections:
+        s = sections.pop()
+        if s and s.level < level:
+            sections.append(s)
+            return
+
+
 atxHeadingRe = re.compile(r'^(#+)\s+(.*?)(?:\s+#+)?\s*$')
 settextHeadingRe = re.compile(r'^[-=]+$')
 settextSubjectRe = re.compile(r'^[^\s]+.*$')
@@ -102,9 +115,7 @@ def findSections(filename, lines):
     sections = []
     inCodeBlock = False
 
-    # Initialize previous sections to cope with documents that don't start
-    # at the top-most heading type.
-    previousSections = [None] * 12
+    previousSections = []
 
     for i, line in enumerate(lines):
         # Skip GitHub Markdown style code blocks.
@@ -120,7 +131,7 @@ def findSections(filename, lines):
             level = len(m.group(1))
             name = m.group(2)
 
-            previousSections = previousSections[:level-1]
+            popSections(previousSections, level)
             if previousSections:
                 parent = previousSections[-1]
             else:
@@ -143,7 +154,7 @@ def findSections(filename, lines):
                 else:
                     level = 2
 
-                previousSections = previousSections[:level-1]
+                popSections(previousSections, level)
                 if previousSections:
                     parent = previousSections[-1]
                 else:
