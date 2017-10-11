@@ -284,7 +284,7 @@ def cli_main():
             sys.exit(141)
         raise
     except ScriptError as e:
-        print >>sys.stderr, "ERROR: %s" % str(e)
+        print("ERROR: %s" % str(e), file=sys.stderr)
         sys.exit(1)
 
 
