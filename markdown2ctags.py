@@ -61,8 +61,23 @@ class Tag(object):
             self.tagName, self.tagFile, self.tagAddress,
             self._formatFields().replace('\t', ' '))
 
-    def __cmp__(self, other):
-        return cmp(str(self), str(other))
+    def __eq__(self, other):
+        return str(self) == str(other)
+
+    def __ne__(self, other):
+        return str(self) != str(other)
+
+    def __lt__(self, other):
+        return str(self) < str(other)
+
+    def __le__(self, other):
+        return str(self) <= str(other)
+
+    def __gt__(self, other):
+        return str(self) > str(other)
+
+    def __ge__(self, other):
+        return str(self) >= str(other)
 
     @staticmethod
     def section(section):
