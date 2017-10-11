@@ -8,11 +8,20 @@
 
 from __future__ import absolute_import
 from __future__ import print_function
+import pkg_resources
 import sys
 import re
 
 
-__version__ = '0.1.3'
+def _version():
+    '''Get version.'''
+    try:
+        return pkg_resources.get_distribution('markdown2ctags').version
+    except pkg_resources.DistributionNotFound:
+        return 'dev'
+
+
+__version__ = _version()
 
 
 class ScriptError(Exception):
@@ -265,7 +274,8 @@ def main():
     output.flush()
     output.close()
 
-if __name__ == '__main__':
+
+def cli_main():
     try:
         main()
     except IOError as e:
@@ -277,3 +287,7 @@ if __name__ == '__main__':
     except ScriptError as e:
         print >>sys.stderr, "ERROR: %s" % str(e)
         sys.exit(1)
+
+
+if __name__ == '__main__':
+    cli_main()
