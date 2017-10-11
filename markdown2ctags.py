@@ -6,6 +6,8 @@
 # This software is licensed as described in the file LICENSE.txt, which
 # you should have received as part of this distribution.
 
+from __future__ import absolute_import
+from __future__ import print_function
 import sys
 import re
 
@@ -196,19 +198,24 @@ def sectionsToTags(sections):
 def genTagsFile(output, tags, sort):
     if sort == "yes":
         tags = sorted(tags)
-        sortedLine = '!_TAG_FILE_SORTED\t1\n'
+        sortedLine = b'!_TAG_FILE_SORTED\t1\n'
     elif sort == "foldcase":
         tags = sorted(tags, key=lambda x: str(x).lower())
-        sortedLine = '!_TAG_FILE_SORTED\t2\n'
+        sortedLine = b'!_TAG_FILE_SORTED\t2\n'
     else:
-        sortedLine = '!_TAG_FILE_SORTED\t0\n'
+        sortedLine = b'!_TAG_FILE_SORTED\t0\n'
 
-    output.write('!_TAG_FILE_FORMAT\t2\n')
+    output.write(b'!_TAG_FILE_FORMAT\t2\n')
     output.write(sortedLine)
 
-    for t in tags:
-        output.write(str(t))
-        output.write('\n')
+    if sys.version_info[0] == 2:
+        for t in tags:
+            output.write(str(t))
+            output.write('\n')
+    else:
+        for t in tags:
+            output.write(str(t).encode('latin1'))
+            output.write(b'\n')
 
 
 def main():
@@ -231,12 +238,24 @@ def main():
     options, args = parser.parse_args()
 
     if options.tagfile == '-':
-        output = sys.stdout
+        if sys.version_info[0] == 2:
+            output = sys.stdout
+        else:
+            output = sys.stdout.buffer
     else:
         output = open(options.tagfile, 'wb')
 
     for filename in args:
-        f = open(filename, 'rb')
+        if sys.version_info[0] == 2:
+            f = open(filename, 'rb')
+        else:
+            # Use a little trick here to keep things kind of sane, even though
+            # we don't really know the true encoding of the file.  Latin1 lets
+            # us treat the file like every byte is valid (unlike UTF-8 which
+            # has some invalid sequences).
+            f = open(filename, 'r', encoding='latin1', newline='')
+            filename = filename.encode(sys.getfilesystemencoding()).decode('latin1')
+
         lines = f.read().splitlines()
         f.close()
         sections = findSections(filename, lines)
