@@ -139,10 +139,25 @@ settextSubjectRe = re.compile(r'^[^\s]+.*$')
 def findSections(filename, lines):
     sections = []
     inCodeBlock = False
+    inFrontMatter = False
 
     previousSections = []
 
     for i, line in enumerate(lines):
+        # Some markdown-based tools allow for "front matter" at the beginning
+        # of the file.  The data is demarcated by a leading and trailing triple
+        # hyphen (---) on its own line.  The tools I've looked at, like Jekyll,
+        # expect this to start on the first line.  So here's an attempt to skip
+        # over the front matter and only tag the remaining part of the file.
+        if i == 0 and line == '---':
+            inFrontMatter = True
+            continue
+
+        if inFrontMatter:
+            if line == '---':
+                inFrontMatter = False
+            continue
+
         # Skip GitHub Markdown style code blocks.
         if line.startswith("```"):
             inCodeBlock = not inCodeBlock
