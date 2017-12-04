@@ -139,6 +139,7 @@ settextSubjectRe = re.compile(r'^[^\s]+.*$')
 def findSections(filename, lines):
     sections = []
     inCodeBlock = False
+    beyondFrontMatter = False
     inFrontMatter = False
 
     previousSections = []
@@ -149,14 +150,16 @@ def findSections(filename, lines):
         # hyphen (---) on its own line.  The tools I've looked at, like Jekyll,
         # expect this to start on the first line.  So here's an attempt to skip
         # over the front matter and only tag the remaining part of the file.
-        if i == 0 and line == '---':
-            inFrontMatter = True
-            continue
+        if not beyondFrontMatter:
+            if line == "":
+                continue
+            elif line == '---':
+                inFrontMatter = not inFrontMatter
+                continue
 
-        if inFrontMatter:
-            if line == '---':
-                inFrontMatter = False
-            continue
+            if not inFrontMatter and line:
+                beyondFrontMatter = True
+
 
         # Skip GitHub Markdown style code blocks.
         if line.startswith("```"):
