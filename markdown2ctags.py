@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (C) 2013-2017 John Szakmeister <john@szakmeister.net>
+# Copyright (C) 2013-2018 John Szakmeister <john@szakmeister.net>
 # All rights reserved.
 #
 # This software is licensed as described in the file LICENSE.txt, which
