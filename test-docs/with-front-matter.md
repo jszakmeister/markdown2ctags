@@ -1,0 +1,5 @@
+---
+title: Document title
+---
+Title
+-----
