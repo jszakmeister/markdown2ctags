@@ -37,7 +37,7 @@ To use this tool with TagBar, add the following into your ``~/.vimrc``::
     new sro character on the command line via the ``--sro`` option.
 
 You'll need to have the TagBar plugin installed for this to work.  Also, you
-make need to call the variable ``g:tagbar_type_mkd`` and change ``ctagstype`` to
+may need to call the variable ``g:tagbar_type_mkd`` and change ``ctagstype`` to
 ``'mkd'`` if you're Ben William's Markdown syntax highlighting script.  It sets
 the file type to ``mkd`` whereas Tim Pope's sets it to ``markdown``.
 
