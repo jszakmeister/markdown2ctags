@@ -8,6 +8,10 @@
 
 from __future__ import absolute_import
 from __future__ import print_function
+
+import codecs
+import io
+import locale
 import pkg_resources
 import sys
 import re
@@ -26,6 +30,53 @@ __version__ = _version()
 
 class ScriptError(Exception):
     pass
+
+
+def detect_encoding(filename):
+    with open(filename, 'rb') as f:
+        raw = f.read(32)
+
+    potential_bom = raw[:4]
+    bom_encodings = [('utf-8-sig', codecs.BOM_UTF8),
+                     ('utf-16', codecs.BOM_UTF16_LE),
+                     ('utf-16', codecs.BOM_UTF16_BE),
+                     ('utf-32', codecs.BOM_UTF32_LE),
+                     ('utf-32', codecs.BOM_UTF32_BE)]
+    for encoding, bom in bom_encodings:
+        if potential_bom.startswith(bom):
+            return encoding
+
+    # No BOM found, let's try to detect encoding
+    encoding = None
+    try:
+        import chardet
+
+        result = chardet.detect(raw)
+
+        # If we're not really confident about the encoding, then skip to
+        # UTF-8 detection.
+        if result['confidence'] >= 0.9:
+            encoding = result['encoding']
+
+        if encoding == 'ascii':
+            encoding = 'utf-8'
+    except ImportError:
+        pass
+
+    if encoding is None:
+        try:
+            raw.decode('utf-8')
+            encoding = 'utf-8'
+        except UnicodeDecodeError:
+            pass
+
+    return encoding or 'latin1'
+
+
+def open_autoenc(filename, encoding=None):
+    if encoding is None:
+        encoding = detect_encoding(filename)
+    return io.open(filename, encoding=encoding, newline='')
 
 
 def ctagNameEscape(str):
@@ -62,7 +113,7 @@ class Tag(object):
             formattedFields.append(s)
         return '\t'.join(formattedFields)
 
-    def __str__(self):
+    def render(self):
         return '%s\t%s\t%s;"\t%s' % (
             self.tagName, self.tagFile, self.tagAddress, self._formatFields())
 
@@ -71,23 +122,27 @@ class Tag(object):
             self.tagName, self.tagFile, self.tagAddress,
             self._formatFields().replace('\t', ' '))
 
+    def _tuple(self):
+        return (self.tagName, self.tagFile, self.tagAddress,
+                self._formatFields())
+
     def __eq__(self, other):
-        return str(self) == str(other)
+        return self._tuple() == other._tuple()
 
     def __ne__(self, other):
-        return str(self) != str(other)
+        return self._tuple() != other._tuple()
 
     def __lt__(self, other):
-        return str(self) < str(other)
+        return self._tuple() < other._tuple()
 
     def __le__(self, other):
-        return str(self) <= str(other)
+        return self._tuple() <= other._tuple()
 
     def __gt__(self, other):
-        return str(self) > str(other)
+        return self._tuple() > other._tuple()
 
     def __ge__(self, other):
-        return str(self) >= str(other)
+        return self._tuple() >= other._tuple()
 
     @staticmethod
     def section(section, sro):
@@ -231,17 +286,13 @@ def genTagsFile(output, tags, sort):
     else:
         sortedLine = b'!_TAG_FILE_SORTED\t0\n'
 
+    output.write(b'!_TAG_FILE_ENCODING\tutf-8\n')
     output.write(b'!_TAG_FILE_FORMAT\t2\n')
     output.write(sortedLine)
 
-    if sys.version_info[0] == 2:
-        for t in tags:
-            output.write(str(t))
-            output.write('\n')
-    else:
-        for t in tags:
-            output.write(str(t).encode('latin1'))
-            output.write(b'\n')
+    for t in tags:
+        output.write(t.render().encode('utf-8'))
+        output.write('\n'.encode('utf-8'))
 
 
 def main():
@@ -254,6 +305,12 @@ def main():
         default="tags",
         help='Write tags into FILE (default: "tags").  Use "-" to write '
              'tags to stdout.')
+    parser.add_option(
+        "", "--encoding", metavar="ENCODING", dest="encoding",
+        default=None,
+        help='Skips auto detection and uses the specified encoding for the '
+             'input files.  Encoding name should be one that Python would '
+             'recognize.')
     parser.add_option(
         "", "--sort", metavar="[yes|foldcase|no]", dest="sort",
         choices=["yes", "no", "foldcase"],
@@ -279,18 +336,9 @@ def main():
         output = open(options.tagfile, 'wb')
 
     for filename in args:
-        if sys.version_info[0] == 2:
-            f = open(filename, 'rb')
-        else:
-            # Use a little trick here to keep things kind of sane, even though
-            # we don't really know the true encoding of the file.  Latin1 lets
-            # us treat the file like every byte is valid (unlike UTF-8 which
-            # has some invalid sequences).
-            f = open(filename, 'r', encoding='latin1', newline='')
-            filename = filename.encode(sys.getfilesystemencoding()).decode('latin1')
+        with open_autoenc(filename, encoding=options.encoding) as f:
+            lines = f.read().splitlines()
 
-        lines = f.read().splitlines()
-        f.close()
         sections = findSections(filename, lines)
 
         genTagsFile(output,
