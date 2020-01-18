@@ -65,7 +65,7 @@ def detect_encoding(filename):
 
     if encoding is None:
         try:
-            raw.decode('utf-8')
+            raw.rsplit(b' ')[0].decode('utf-8')
             encoding = 'utf-8'
         except UnicodeDecodeError:
             pass
