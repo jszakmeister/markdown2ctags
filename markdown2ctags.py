@@ -34,7 +34,7 @@ class ScriptError(Exception):
 
 def detect_encoding(filename):
     with open(filename, 'rb') as f:
-        raw = f.read(32)
+        raw = f.read(4096)
 
     potential_bom = raw[:4]
     bom_encodings = [('utf-8-sig', codecs.BOM_UTF8),
