@@ -327,6 +327,10 @@ def main():
 
     options, args = parser.parse_args()
 
+    if sys.version_info[0] == 2:
+        encoding = sys.stdin.encoding or locale.getpreferredencoding() or 'utf-8'
+        options.sro = options.sro.decode(encoding)
+
     if options.tagfile == '-':
         if sys.version_info[0] == 2:
             output = sys.stdout
@@ -336,6 +340,9 @@ def main():
         output = open(options.tagfile, 'wb')
 
     for filename in args:
+        if sys.version_info[0] == 2:
+            filename = filename.decode(sys.getfilesystemencoding())
+
         with open_autoenc(filename, encoding=options.encoding) as f:
             lines = f.read().splitlines()
 
