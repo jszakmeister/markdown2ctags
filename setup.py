@@ -4,7 +4,7 @@ import io
 import os
 
 
-version = '0.3.1.dev'
+version = '0.3.1'
 
 
 readme_path = os.path.join(os.path.dirname(__file__), 'README.rst')
