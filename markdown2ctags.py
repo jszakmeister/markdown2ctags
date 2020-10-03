@@ -279,15 +279,15 @@ def sectionsToTags(sections, sro):
 def genTagsFile(output, tags, sort):
     if sort == "yes":
         tags = sorted(tags)
-        sortedLine = b'!_TAG_FILE_SORTED\t1\n'
+        sortedLine = b'!_TAG_FILE_SORTED\t1\t//\n'
     elif sort == "foldcase":
         tags = sorted(tags, key=lambda x: str(x).lower())
-        sortedLine = b'!_TAG_FILE_SORTED\t2\n'
+        sortedLine = b'!_TAG_FILE_SORTED\t2\t//\n'
     else:
-        sortedLine = b'!_TAG_FILE_SORTED\t0\n'
+        sortedLine = b'!_TAG_FILE_SORTED\t0\t//\n'
 
-    output.write(b'!_TAG_FILE_ENCODING\tutf-8\n')
-    output.write(b'!_TAG_FILE_FORMAT\t2\n')
+    output.write(b'!_TAG_FILE_ENCODING\tutf-8\t//\n')
+    output.write(b'!_TAG_FILE_FORMAT\t2\t//\n')
     output.write(sortedLine)
 
     for t in tags:
