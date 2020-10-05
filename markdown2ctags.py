@@ -10,6 +10,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import codecs
+import errno
 import io
 import locale
 import pkg_resources
@@ -79,52 +80,56 @@ def open_autoenc(filename, encoding=None):
     return io.open(filename, encoding=encoding, newline='')
 
 
-def ctagNameEscape(str):
-    return re.sub('[\t\r\n]+', ' ', str)
+def ctag_name_escape(str):
+    str = re.sub('[\t\r\n]+', ' ', str)
+    str = re.sub(r'^\s*\\\((.)\)', r'(\1)', str)
+    return str
 
 
-def ctagSearchEscape(str):
+def ctag_search_escape(str):
+    str = str.replace('\\', r'\\')
     str = str.replace('\t', r'\t')
     str = str.replace('\r', r'\r')
     str = str.replace('\n', r'\n')
-    str = str.replace('\\', r'\\')
+    for c in '[]*$.^':
+        str = str.replace(c, '\\' + c)
     return str
 
 
 class Tag(object):
-    def __init__(self, tagName, tagFile, tagAddress):
-        self.tagName = tagName
-        self.tagFile = tagFile
-        self.tagAddress = tagAddress
+    def __init__(self, tag_name, tag_file, tag_address):
+        self.tag_name = tag_name
+        self.tag_file = tag_file
+        self.tag_address = tag_address
         self.fields = []
 
-    def addField(self, type, value=None):
+    def add_field(self, type, value=None):
         if type == 'kind':
             type = None
         self.fields.append((type, value or ""))
 
-    def _formatFields(self):
-        formattedFields = []
+    def _format_fields(self):
+        formatted_fields = []
         for name, value in self.fields:
             if name:
                 s = '%s:%s' % (name, value or "")
             else:
                 s = str(value)
-            formattedFields.append(s)
-        return '\t'.join(formattedFields)
+            formatted_fields.append(s)
+        return '\t'.join(formatted_fields)
 
     def render(self):
         return '%s\t%s\t%s;"\t%s' % (
-            self.tagName, self.tagFile, self.tagAddress, self._formatFields())
+            self.tag_name, self.tag_file, self.tag_address, self._format_fields())
 
     def __repr__(self):
         return "<Tag name:%s file:%s: addr:%s %s>" % (
-            self.tagName, self.tagFile, self.tagAddress,
-            self._formatFields().replace('\t', ' '))
+            self.tag_name, self.tag_file, self.tag_address,
+            self._format_fields().replace('\t', ' '))
 
     def _tuple(self):
-        return (self.tagName, self.tagFile, self.tagAddress,
-                self._formatFields())
+        return (self.tag_name, self.tag_file, self.tag_address,
+                self._format_fields())
 
     def __eq__(self, other):
         return self._tuple() == other._tuple()
@@ -146,39 +151,39 @@ class Tag(object):
 
     @staticmethod
     def section(section, sro):
-        tagName = ctagNameEscape(section.name)
-        tagAddress = '/^%s$/' % ctagSearchEscape(section.line)
-        t = Tag(tagName, section.filename, tagAddress)
-        t.addField('kind', 's')
-        t.addField('line', section.lineNumber)
+        tag_name = ctag_name_escape(section.name)
+        tag_address = '/^%s$/' % ctag_search_escape(section.line)
+        t = Tag(tag_name, section.filename, tag_address)
+        t.add_field('kind', 's')
+        t.add_field('line', section.line_number)
 
         parents = []
         p = section.parent
         while p is not None:
-            parents.append(ctagNameEscape(p.name))
+            parents.append(ctag_name_escape(p.name))
             p = p.parent
         parents.reverse()
 
         if parents:
-            t.addField('section', sro.join(parents))
+            t.add_field('section', sro.join(parents))
 
         return t
 
 
 class Section(object):
-    def __init__(self, level, name, line, lineNumber, filename, parent=None):
+    def __init__(self, level, name, line, line_number, filename, parent=None):
         self.level = level
         self.name = name
         self.line = line
-        self.lineNumber = lineNumber
+        self.line_number = line_number
         self.filename = filename
         self.parent = parent
 
     def __repr__(self):
-        return '<Section %s %d %d>' % (self.name, self.level, self.lineNumber)
+        return '<Section %s %d %d>' % (self.name, self.level, self.line_number)
 
 
-def popSections(sections, level):
+def pop_sections(sections, level):
     while sections:
         s = sections.pop()
         if s and s.level < level:
@@ -186,18 +191,18 @@ def popSections(sections, level):
             return
 
 
-atxHeadingRe = re.compile(r'^(#+)\s+(.*?)(?:\s+#+)?\s*$')
-settextHeadingRe = re.compile(r'^[-=]+$')
-settextSubjectRe = re.compile(r'^[^\s]+.*$')
+atx_heading_re = re.compile(r'^(#+)\s+(.*?)(?:\s+#+)?\s*$')
+settext_heading_re = re.compile(r'^[-=]+$')
+settext_subject_re = re.compile(r'^[^\s]+.*$')
 
 
-def findSections(filename, lines):
+def find_sections(filename, lines):
     sections = []
-    inCodeBlock = False
-    beyondFrontMatter = False
-    inFrontMatter = False
+    in_code_block = False
+    beyond_front_matter = False
+    in_front_matter = False
 
-    previousSections = []
+    previous_sections = []
 
     for i, line in enumerate(lines):
         # Some markdown-based tools allow for "front matter" at the beginning
@@ -205,44 +210,43 @@ def findSections(filename, lines):
         # hyphen (---) on its own line.  The tools I've looked at, like Jekyll,
         # expect this to start on the first line.  So here's an attempt to skip
         # over the front matter and only tag the remaining part of the file.
-        if not beyondFrontMatter:
+        if not beyond_front_matter:
             if line == "":
                 continue
             elif line == '---':
-                inFrontMatter = not inFrontMatter
+                in_front_matter = not in_front_matter
                 continue
 
-            if not inFrontMatter and line:
-                beyondFrontMatter = True
-
+            if not in_front_matter and line:
+                beyond_front_matter = True
 
         # Skip GitHub Markdown style code blocks.
         if line.startswith("```"):
-            inCodeBlock = not inCodeBlock
+            in_code_block = not in_code_block
             continue
 
-        if inCodeBlock:
+        if in_code_block:
             continue
 
-        m = atxHeadingRe.match(line)
+        m = atx_heading_re.match(line)
         if m:
             level = len(m.group(1))
             name = m.group(2)
 
-            popSections(previousSections, level)
-            if previousSections:
-                parent = previousSections[-1]
+            pop_sections(previous_sections, level)
+            if previous_sections:
+                parent = previous_sections[-1]
             else:
                 parent = None
-            lineNumber = i + 1
+            line_number = i + 1
 
-            s = Section(level, name, line, lineNumber, filename, parent)
-            previousSections.append(s)
+            s = Section(level, name, line, line_number, filename, parent)
+            previous_sections.append(s)
             sections.append(s)
         else:
-            m = settextHeadingRe.match(line)
+            m = settext_heading_re.match(line)
             if i and m:
-                if not settextSubjectRe.match(lines[i - 1]):
+                if not settext_subject_re.match(lines[i - 1]):
                     continue
 
                 name = lines[i-1].strip()
@@ -252,22 +256,22 @@ def findSections(filename, lines):
                 else:
                     level = 2
 
-                popSections(previousSections, level)
-                if previousSections:
-                    parent = previousSections[-1]
+                pop_sections(previous_sections, level)
+                if previous_sections:
+                    parent = previous_sections[-1]
                 else:
                     parent = None
-                lineNumber = i
+                line_number = i
 
-                s = Section(level, name, lines[i-1], lineNumber,
+                s = Section(level, name, lines[i-1], line_number,
                             filename, parent)
-                previousSections.append(s)
+                previous_sections.append(s)
                 sections.append(s)
 
     return sections
 
 
-def sectionsToTags(sections, sro):
+def sections_to_tags(sections, sro):
     tags = []
 
     for section in sections:
@@ -276,19 +280,24 @@ def sectionsToTags(sections, sro):
     return tags
 
 
-def genTagsFile(output, tags, sort):
+def gen_tags_header(output, sort):
     if sort == "yes":
-        tags = sorted(tags)
-        sortedLine = b'!_TAG_FILE_SORTED\t1\t//\n'
+        sorted_line = b'!_TAG_FILE_SORTED\t1\t//\n'
     elif sort == "foldcase":
-        tags = sorted(tags, key=lambda x: str(x).lower())
-        sortedLine = b'!_TAG_FILE_SORTED\t2\t//\n'
+        sorted_line = b'!_TAG_FILE_SORTED\t2\t//\n'
     else:
-        sortedLine = b'!_TAG_FILE_SORTED\t0\t//\n'
+        sorted_line = b'!_TAG_FILE_SORTED\t0\t//\n'
 
     output.write(b'!_TAG_FILE_ENCODING\tutf-8\t//\n')
     output.write(b'!_TAG_FILE_FORMAT\t2\t//\n')
-    output.write(sortedLine)
+    output.write(sorted_line)
+
+
+def gen_tags_content(output, sort, tags):
+    if sort == "yes":
+        tags = sorted(tags)
+    elif sort == "foldcase":
+        tags = sorted(tags, key=lambda x: str(x).lower())
 
     for t in tags:
         output.write(t.render().encode('utf-8'))
@@ -339,21 +348,46 @@ def main():
     else:
         output = open(options.tagfile, 'wb')
 
-    for filename in args:
-        if sys.version_info[0] == 2:
-            filename = filename.decode(sys.getfilesystemencoding())
+    gen_tags_header(output, options.sort)
 
-        with open_autoenc(filename, encoding=options.encoding) as f:
-            lines = f.read().splitlines()
+    all_sections = []
 
-        sections = findSections(filename, lines)
+    try:
+        for filename in args:
+            if sys.version_info[0] == 2:
+                filename = filename.decode(sys.getfilesystemencoding())
 
-        genTagsFile(output,
-                    sectionsToTags(sections, options.sro),
-                    sort=options.sort)
+            try:
+                with open_autoenc(filename, encoding=options.encoding) as f:
+                    buf = f.read()
+            except IOError as e:
+                if e.errno == errno.EPIPE:
+                    raise
+                print_warning(e)
+                continue
+
+            lines = buf.splitlines()
+            del buf
+
+            sections = find_sections(filename, lines)
+            all_sections.extend(sections)
+    finally:
+        # We do this to match ctags behavior... even when a file is missing,
+        # it'll write out the tags it has.
+        gen_tags_content(output,
+                         options.sort,
+                         sections_to_tags(all_sections, options.sro))
 
     output.flush()
     output.close()
+
+
+def print_warning(e):
+    print("WARNING: %s" % str(e), file=sys.stderr)
+
+
+def print_error(e):
+    print("ERROR: %s" % str(e), file=sys.stderr)
 
 
 def cli_main():
