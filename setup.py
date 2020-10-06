@@ -2,11 +2,25 @@ from setuptools import setup
 
 import io
 import os
+import re
 
 
-version = '0.3.3.dev0'
+version_re = re.compile(r'^__version__ = "([^"]*)"$')
 
 
+# Find the version number.
+with open('markdown2ctags.py', 'r') as f:
+    for line in f:
+        line = line.rstrip()
+        m = version_re.match(line)
+        if m:
+            version = m.group(1)
+            break
+    else:
+        raise RuntimeError("Couldn't find version string in markdown2ctags.py")
+
+
+# Load the description.
 readme_path = os.path.join(os.path.dirname(__file__), 'README.rst')
 with io.open(readme_path, encoding='utf-8') as f:
     long_description = f.read()

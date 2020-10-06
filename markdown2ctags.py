@@ -13,20 +13,11 @@ import codecs
 import errno
 import io
 import locale
-import pkg_resources
 import sys
 import re
 
 
-def _version():
-    '''Get version.'''
-    try:
-        return pkg_resources.get_distribution('markdown2ctags').version
-    except pkg_resources.DistributionNotFound:
-        return 'dev'
-
-
-__version__ = _version()
+__version__ = "0.3.3.dev0"
 
 
 class ScriptError(Exception):
